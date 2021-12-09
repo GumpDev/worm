@@ -23,32 +23,14 @@ public class WormConnector {
         hikariConfig.addDataSourceProperty("PrepStmtCacheSize", "250");
         hikariConfig.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
         hikariDataSource = new HikariDataSource(hikariConfig);
-
-        openConnection();
     }
 
-    public static void openConnection() {
-        try {
-            connection = hikariDataSource.getConnection();
-        } catch (SQLException exception) {
-            exception.printStackTrace();
-        }
-    }
-
-    public static void closeConnection() {
-        try {
-            hikariDataSource.close();
-        } catch (Exception exception) {
-            exception.printStackTrace();
-        }
-    }
-
-    public static PreparedStatement Query(String sql) {
+    public static WormQuery Query(String sql) {
         if(wormConnection.isDebug())
             System.out.println("[SQL] " + sql);
         try {
-            assert connection != null;
-            return connection.prepareStatement(sql);
+            Connection connection = hikariDataSource.getConnection();
+            return new WormQuery(connection, connection.prepareStatement(sql));
         } catch (SQLException exception) {
             exception.printStackTrace();
         }

@@ -13,6 +13,7 @@ public class WormTable implements Cloneable {
     private final String tableName;
     private static List<String> initialized = new ArrayList<>();
     private ResultSet results;
+    private WormQuery queryClass;
 
     public WormTable(List<WormColumn> columns){
         this.columns = columns;
@@ -44,9 +45,12 @@ public class WormTable implements Cloneable {
         }
         sql.append(")");
         try {
-            PreparedStatement statement = WormConnector.Query(sql.toString());
+            WormQuery query = WormConnector.Query(sql.toString());
+            assert query != null;
+            PreparedStatement statement = query.getStatement();
             assert statement != null;
             statement.executeUpdate();
+            query.closeConnection();
             return true;
         } catch (SQLException e) {
             e.printStackTrace();
@@ -96,9 +100,12 @@ public class WormTable implements Cloneable {
         }
         sql.append(" WHERE ").append(where);
         try {
-            PreparedStatement statement = WormConnector.Query(sql.toString());
+            WormQuery query = WormConnector.Query(sql.toString());
+            assert query != null;
+            PreparedStatement statement = query.getStatement();
             assert statement != null;
             statement.executeUpdate();
+            query.closeConnection();
             return true;
         } catch (SQLException e) {
             e.printStackTrace();
@@ -132,9 +139,12 @@ public class WormTable implements Cloneable {
     public Boolean Delete(String where){
         String sql = "DELETE FROM `" + tableName + "` " + where;
         try {
-            PreparedStatement statement = WormConnector.Query(sql);
+            WormQuery query = WormConnector.Query(sql.toString());
+            assert query != null;
+            PreparedStatement statement = query.getStatement();
             assert statement != null;
             statement.executeUpdate();
+            query.closeConnection();
             return true;
         } catch (SQLException e) {
             e.printStackTrace();
@@ -190,7 +200,10 @@ public class WormTable implements Cloneable {
                         throw new IllegalArgumentException("Bad type.");
                 }
                 return true;
-            }else return false;
+            }else {
+                this.queryClass.closeConnection();
+                return false;
+            }
         } catch (SQLException | NoSuchFieldException | IllegalAccessException e) {
             e.printStackTrace();
             return false;
@@ -204,14 +217,19 @@ public class WormTable implements Cloneable {
     public Boolean Find(String where){
         String sql = "SELECT * FROM `" + tableName + "`" + (!where.equals("") ? " WHERE " + where : "");
         try {
-            PreparedStatement statement = WormConnector.Query(sql);
+            WormQuery query = WormConnector.Query(sql.toString());
+            assert query != null;
+            PreparedStatement statement = query.getStatement();
             assert statement != null;
             ResultSet resultSet = statement.executeQuery();
-            results = resultSet;
-            if(resultSet != null)
-                return Next();
-            else
-                return false;
+            if(resultSet.getFetchSize() > 1) {
+                results = resultSet;
+                this.queryClass = query;
+            }
+            Boolean ret = Next();
+            if(resultSet.getFetchSize() <= 1)
+                query.closeConnection();
+            return ret;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -231,9 +249,12 @@ public class WormTable implements Cloneable {
         }
         sql.append(!primaryKey.equals("") ? primaryKey : "").append(")");
         try {
-            PreparedStatement statement = WormConnector.Query(sql.toString());
+            WormQuery query = WormConnector.Query(sql.toString());
+            assert query != null;
+            PreparedStatement statement = query.getStatement();
             assert statement != null;
             statement.executeUpdate();
+            query.closeConnection();
             initialized.add(tableName);
         } catch (SQLException e) {
             e.printStackTrace();
