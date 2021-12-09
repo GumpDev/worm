@@ -22,6 +22,7 @@ public class WormTable implements Cloneable, AutoCloseable {
         this.tableName = WormUtils.getLastDot(this.getClass().getName());
         this.logger = Logger.getLogger(this.tableName + " Logger");
 
+        Verify();
         Create();
     }
 
@@ -30,25 +31,30 @@ public class WormTable implements Cloneable, AutoCloseable {
         this.tableName = tableName;
         this.logger = Logger.getLogger(this.tableName + " Logger");
 
+        Verify();
         Create();
     }
 
     public Boolean Insert() {
         StringBuilder sql = new StringBuilder("INSERT INTO `" + tableName + "` (");
         boolean first = true;
-        for(WormColumn column : columns) {
+        for (WormColumn column : columns) {
             sql.append(first ? "" : ", ").append(column.getSqlName());
             first = false;
         }
         sql.append(") VALUES (");
         first = true;
-        for(WormColumn column : columns) {
+        for (WormColumn column : columns) {
             try {
                 Field field = this.getClass().getDeclaredField(column.getFieldName());
                 field.setAccessible(true);
-                String value = WormUtils.escapeToSql(field.get(this).toString());
+                Object value = field.get(this);
 
-                sql.append(first ? "" : ", ").append("'").append(value).append("'");
+                if (value != null) {
+                    sql.append(first ? "" : ", ").append("'").append(WormUtils.escapeToSql(value.toString())).append("'");
+                } else {
+                    sql.append(first ? "" : ", ").append("DEFAULT");
+                }
             } catch (Exception exception) {
                 logger.log(Level.SEVERE, "Something went wrong while collecting " + this.tableName + "'s " + column.getFieldName() + " value", exception);
                 return false;
@@ -57,9 +63,35 @@ public class WormTable implements Cloneable, AutoCloseable {
         }
         sql.append(")");
 
-        try (WormQuery query = WormConnector.Query(sql.toString())) {
-            query.executeUpdate();
-            return true;
+        try {
+            WormQuery query;
+            WormColumn idColumn = getAutoIncrementIdColumn();
+            if (idColumn == null)
+                query = WormConnector.Query(sql.toString());
+            else
+                query = WormConnector.QueryWithGeneratedKeys(sql.toString());
+
+            try (query) {
+                query.executeUpdate();
+
+                if (idColumn != null) {
+                    try {
+                        ResultSet generatedKeys = query.getStatement().getGeneratedKeys();
+
+                        if (generatedKeys.next()) {
+                            int generatedId = generatedKeys.getInt(1);
+                            Field field = this.getClass().getDeclaredField(idColumn.getFieldName());
+                            field.setAccessible(true);
+                            field.set(this, generatedId);
+                        }
+                    } catch (Exception exception) {
+                        logger.log(Level.SEVERE, "Something went wrong while setting generated id into table " + this.tableName, exception);
+                        return false;
+                    }
+                }
+
+                return true;
+            }
         } catch (SQLException exception) {
             logger.log(Level.SEVERE, "Something went wrong while inserting into table " + this.tableName, exception);
             return false;
@@ -68,14 +100,18 @@ public class WormTable implements Cloneable, AutoCloseable {
 
     public Boolean Update() {
         WormColumn idColumn = getIdColumn();
-        if (idColumn == null) return false;
+        if (idColumn == null)
+            return false;
 
         try {
             Field field = this.getClass().getField(idColumn.getFieldName());
             field.setAccessible(true);
-            String value = WormUtils.escapeToSql(field.get(this).toString());
+            Object value = field.get(this);
 
-            return Update(idColumn.getSqlName() + " = '" + value + "'");
+            if (value == null)
+                throw new IllegalArgumentException("Id column value is null");
+
+            return Update(idColumn.getSqlName() + " = '" + WormUtils.escapeToSql(value.toString()) + "'");
         } catch (Exception exception) {
             logger.log(Level.SEVERE, "Something went wrong while updating into table " + this.tableName + " with id column", exception);
             return false;
@@ -85,13 +121,18 @@ public class WormTable implements Cloneable, AutoCloseable {
     public Boolean Update(String where) {
         StringBuilder sql = new StringBuilder("UPDATE `" + tableName + "` SET ");
         boolean first = true;
-        Object obj = this;
         for(WormColumn column : columns) {
             sql.append(first ? "" : ", ").append(column.getSqlName()).append(" = ");
             try {
-                Field field = obj.getClass().getDeclaredField(column.getFieldName());
+                Field field = this.getClass().getDeclaredField(column.getFieldName());
                 field.setAccessible(true);
-                sql.append("'").append(field.get(obj)).append("'");
+                Object value = field.get(this);
+
+                if (value != null) {
+                    sql.append("'").append(WormUtils.escapeToSql(value.toString())).append("'");
+                } else {
+                    sql.append("DEFAULT");
+                }
             } catch (Exception exception) {
                 logger.log(Level.SEVERE, "Something went wrong while collecting " + this.tableName + "'s " + column.getFieldName() + " value", exception);
                 return false;
@@ -111,14 +152,18 @@ public class WormTable implements Cloneable, AutoCloseable {
 
     public Boolean Delete() {
         WormColumn idColumn = getIdColumn();
-        if (idColumn == null) return false;
+        if (idColumn == null)
+            return false;
 
         try {
             Field field = this.getClass().getField(idColumn.getFieldName());
             field.setAccessible(true);
-            String value = WormUtils.escapeToSql(field.get(this).toString());
+            Object value = field.get(this);
 
-            return Delete("WHERE " + idColumn.getSqlName() + " = '" + value + "'");
+            if (value == null)
+                throw new IllegalArgumentException("Id column value is null");
+
+            return Delete("WHERE " + idColumn.getSqlName() + " = '" + WormUtils.escapeToSql(value.toString()) + "'");
         } catch (Exception exception) {
             logger.log(Level.SEVERE, "Something went wrong while deleting from table " + this.tableName + " with id column", exception);
             return false;
@@ -137,21 +182,18 @@ public class WormTable implements Cloneable, AutoCloseable {
         }
     }
 
-    public Boolean Get(Integer id) {
-        WormColumn idColumn = getIdColumn();
-        if (idColumn == null) return false;
+    public Boolean Get(Object id) {
+        if (id == null)
+            return false;
 
-        return Find(idColumn.getSqlName() + " = " + id);
+        WormColumn idColumn = getIdColumn();
+        if (idColumn == null)
+            return false;
+
+        return Find(idColumn.getSqlName() + " = '" + WormUtils.escapeToSql(id.toString()) + "'");
     }
 
-    public Boolean Get(String id) {
-        WormColumn idColumn = getIdColumn();
-        if (idColumn == null) return false;
-
-        return Find(idColumn.getSqlName() + " = '" + id + "'");
-    }
-
-    public Boolean Next(){
+    public Boolean Next() {
         if (query == null) {
             logger.severe("Cannot advance with ResultSet without a query");
             return false;
@@ -215,13 +257,13 @@ public class WormTable implements Cloneable, AutoCloseable {
         }
     }
 
-    void Create(){
+    private void Create() {
         if(initializedTables.contains(tableName)) return;
 
         StringBuilder sql = new StringBuilder("CREATE TABLE IF NOT EXISTS `" + tableName + "` (");
         String primaryKey = "";
         boolean first = true;
-        for(WormColumn column : columns) {
+        for (WormColumn column : columns) {
             sql.append(first ? "" : ", ").append(column.getSqlName()).append(" ").append(column.getSqlCreation());
             if(column.isId())
                 primaryKey = ", PRIMARY KEY (`"+column.getSqlName()+"`)";
@@ -235,6 +277,13 @@ public class WormTable implements Cloneable, AutoCloseable {
         } catch (SQLException exception) {
             logger.log(Level.SEVERE, "Something went wrong while deleting from table " + this.tableName, exception);
         }
+    }
+
+    private void Verify() {
+        WormColumn idColumn = getIdColumn();
+
+        if (idColumn == null)
+            throw new IllegalStateException("A table must have a primary key column");
     }
 
     @Override
@@ -253,15 +302,32 @@ public class WormTable implements Cloneable, AutoCloseable {
 
     private WormColumn getIdColumn() {
         WormColumn field = null;
-        for(WormColumn column : columns) {
+        for (WormColumn column : columns) {
             if(column.isId()){
                 field = column;
                 break;
             }
         }
 
-        if(field == null) {
+        if (field == null) {
             logger.severe("Could not find a id column in table " + this.tableName);
+            return null;
+        }
+
+        return field;
+    }
+
+    private WormColumn getAutoIncrementIdColumn() {
+        WormColumn field = null;
+        for (WormColumn column : columns) {
+            if(column.isId() && column.isAutoIncrement()){
+                field = column;
+                break;
+            }
+        }
+
+        if (field == null) {
+            logger.severe("Could not find a id with auto increment column in table " + this.tableName);
             return null;
         }
 

@@ -5,12 +5,13 @@ import com.zaxxer.hikari.HikariDataSource;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 public class WormConnector {
     private static HikariDataSource hikariDataSource;
     private static boolean isDebug;
 
-    public static void init(WormConnection wormConnection){
+    public static void init(WormConnection wormConnection) {
         WormConnector.isDebug = wormConnection.isDebug();
 
         HikariConfig hikariConfig = new HikariConfig();
@@ -29,5 +30,13 @@ public class WormConnector {
 
         Connection connection = hikariDataSource.getConnection();
         return new WormQuery(connection, connection.prepareStatement(sql));
+    }
+
+    public static WormQuery QueryWithGeneratedKeys(String sql) throws SQLException {
+        if(isDebug)
+            System.out.println("[SQL] " + sql);
+
+        Connection connection = hikariDataSource.getConnection();
+        return new WormQuery(connection, connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS));
     }
 }
