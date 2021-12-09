@@ -4,19 +4,17 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 public class WormConnector {
-    static Connection connection;
     private static HikariDataSource hikariDataSource;
-    private static WormConnection wormConnection;
+    private static boolean isDebug;
 
     public static void init(WormConnection wormConnection){
-        WormConnector.wormConnection = wormConnection;
+        WormConnector.isDebug = wormConnection.isDebug();
 
         HikariConfig hikariConfig = new HikariConfig();
-        hikariConfig.setJdbcUrl(wormConnection.getConnectionString());
+        hikariConfig.setJdbcUrl(wormConnection.getUrl());
         hikariConfig.setUsername(wormConnection.getUser());
         hikariConfig.setPassword(wormConnection.getPassword());
         hikariConfig.addDataSourceProperty("CachePrepStmts", "true");
@@ -25,15 +23,11 @@ public class WormConnector {
         hikariDataSource = new HikariDataSource(hikariConfig);
     }
 
-    public static WormQuery Query(String sql) {
-        if(wormConnection.isDebug())
+    public static WormQuery Query(String sql) throws SQLException {
+        if(isDebug)
             System.out.println("[SQL] " + sql);
-        try {
-            Connection connection = hikariDataSource.getConnection();
-            return new WormQuery(connection, connection.prepareStatement(sql));
-        } catch (SQLException exception) {
-            exception.printStackTrace();
-        }
-        return null;
+
+        Connection connection = hikariDataSource.getConnection();
+        return new WormQuery(connection, connection.prepareStatement(sql));
     }
 }

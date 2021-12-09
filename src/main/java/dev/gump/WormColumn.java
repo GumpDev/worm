@@ -1,31 +1,32 @@
 package dev.gump;
 
 public class WormColumn {
-    String name = "",
-            sqlName = "",
-            sqlCreation = "";
-    Boolean id = false;
+    private final String fieldName;
+    private final String sqlName;
+    private final String sqlCreation;
+    private final boolean idColumn;
 
     public WormColumn(String columnName, String sqlCreation){
-        this.name = columnName;
+        this.fieldName = columnName;
         this.sqlName = columnName;
         this.sqlCreation = sqlCreation;
+        this.idColumn = false;
     }
-    public WormColumn(String columnName, String sqlCreation, Boolean isId){
-        this.name = columnName;
+    public WormColumn(String columnName, String sqlCreation, boolean idColumn){
+        this.fieldName = columnName;
         this.sqlName = columnName;
-        this.id = isId;
         this.sqlCreation = sqlCreation;
+        this.idColumn = idColumn;
     }
-    public WormColumn(String columnName, String sqlName, String sqlCreation, Boolean isId){
-        this.name = columnName;
+    public WormColumn(String columnName, String sqlName, String sqlCreation, boolean idColumn){
+        this.fieldName = columnName;
         this.sqlName = sqlName;
         this.sqlCreation = sqlCreation;
-        this.id = isId;
+        this.idColumn = idColumn;
     }
 
-    public String getName() {
-        return name;
+    public String getFieldName() {
+        return fieldName;
     }
 
     public String getSqlName() {
@@ -36,7 +37,7 @@ public class WormColumn {
         return sqlCreation;
     }
 
-    public Boolean getId() {
-        return id;
+    public boolean isId() {
+        return idColumn;
     }
 }

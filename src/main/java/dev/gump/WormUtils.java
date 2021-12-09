@@ -5,4 +5,8 @@ public class WormUtils {
         String[] textArr = text.split("\\.");
         return textArr[textArr.length - 1];
     }
+
+    public static String escapeToSql(String value) {
+        return value.replace("'", "''");
+    }
 }
