@@ -1,10 +1,9 @@
 package dev.gump;
 
 public class WormConnection {
-    String ip = "", user = "", password = "", database = "";
-    int port = 3306;
-
-    boolean debug = false;
+    private String ip = "", user = "", password = "", database = "";
+    private int port = 3306;
+    private boolean debug = false;
 
     public WormConnection(String ip, int port, String database, String user, String password) {
         this.ip = ip;
@@ -42,12 +41,8 @@ public class WormConnection {
         this.debug = debug;
     }
 
-    public String getConnectionString(){
+    public String getUrl(){
         return "jdbc:mysql://"+ ip +":"+ port +"/"+ database;
-    }
-
-    public String getIp() {
-        return ip;
     }
 
     public String getUser() {
@@ -58,11 +53,4 @@ public class WormConnection {
         return password;
     }
 
-    public String getDatabase() {
-        return database;
-    }
-
-    public int getPort() {
-        return port;
-    }
 }
