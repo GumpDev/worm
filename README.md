@@ -1,5 +1,5 @@
 <div align="center">
-    <img width="200px" src="wormicon.png" />
+    <img width="200px" src="worm.png" />
     <h1>Worm</h1>
     <p>It's a Java ORM for MySQL</p>
 </div>
