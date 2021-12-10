@@ -96,17 +96,12 @@ To get started we need to start Worm and declare your connection, use in main cl
 Then create a class that extends WormTable:
 ```java
   public class User extends WormTable {
-    public String User_id, Name, Email;
-
-    static List<WormColumn> columns = Arrays.asList(
-      new WormColumn("User_id", "VARCHAR(36)", true), //First param is column name, secound is mysql creation and last is if the column is id or not
-      new WormColumn("Name", "VARCHAR(36)"),
-      new WormColumn("Email", "VARCHAR(36")
-    );
-
-    public User() {
-      super(columns); //use this for declare the class columns in mysql
-    }
+    @WormField(sqlType="VARCHAR", lenght=36, idColumn=true)
+    public String User_id; 
+    @WormField(sqlType="VARCHAR", lenght=50)
+    public String Name;
+    @WormField(sqlType="VARCHAR", lenght=50)
+    public String Email;
   }
 ```
 
