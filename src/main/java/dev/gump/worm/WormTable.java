@@ -1,8 +1,6 @@
-package dev.gump;
+package dev.gump.worm;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -29,6 +27,16 @@ public class WormTable implements Cloneable, AutoCloseable {
         Create();
     }
 
+    public WormTable(String tableName) {
+        this.columns = getColumnsFromClass();
+        this.tableName = tableName;
+        this.logger = Logger.getLogger(this.tableName + " Logger");
+
+        Verify();
+        Create();
+    }
+
+    @Deprecated(forRemoval = true)
     public WormTable(List<WormColumn> columns) {
         this.columns = columns;
         this.tableName = WormUtils.getLastDot(this.getClass().getName());
@@ -38,6 +46,7 @@ public class WormTable implements Cloneable, AutoCloseable {
         Create();
     }
 
+    @Deprecated(forRemoval = true)
     public WormTable(String tableName, List<WormColumn> columns) {
         this.columns = columns;
         this.tableName = tableName;
@@ -45,25 +54,6 @@ public class WormTable implements Cloneable, AutoCloseable {
 
         Verify();
         Create();
-    }
-
-    List<WormColumn> getColumnsFromClass(){
-        List<WormColumn> columns = new ArrayList<>();
-        for(Field field : this.getClass().getDeclaredFields()){
-            if(!field.isAnnotationPresent(WormField.class)) continue;
-            WormField wormField = field.getAnnotation(WormField.class);
-            String name = field.getName();
-            String sqlCreation = wormField.sqlType();
-            String defaultValue = wormField.defaultValue();
-            if(wormField.length() > 0)
-                sqlCreation += "("+wormField.length()+")";
-            if(!Objects.equals(defaultValue, ""))
-                sqlCreation += " DEFAULT " + defaultValue;
-            boolean autoIncrement = wormField.autoIncrement();
-            boolean idColumn = wormField.idColumn();
-            columns.add(new WormColumn(name, sqlCreation, idColumn, autoIncrement));
-        }
-        return columns;
     }
 
     public Boolean Insert() {
@@ -363,5 +353,39 @@ public class WormTable implements Cloneable, AutoCloseable {
         }
 
         return field;
+    }
+
+    private List<WormColumn> getColumnsFromClass() {
+        List<WormColumn> columns = new ArrayList<>();
+        for (Field field : this.getClass().getDeclaredFields()) {
+            if (!field.isAnnotationPresent(WormField.class)) continue;
+
+            WormField wormField = field.getAnnotation(WormField.class);
+            String fieldName = field.getName();
+            String sqlName = wormField.sqlName();
+            String sqlCreation = wormField.sqlType();
+            String defaultValue = wormField.defaultValue();
+            boolean autoIncrement = wormField.autoIncrement();
+            boolean idColumn = wormField.idColumn();
+            boolean nullable = wormField.nullable();
+
+            if (Objects.equals(sqlName, ""))
+                sqlName = fieldName;
+
+            if (wormField.length() > 0)
+                sqlCreation += "(" + wormField.length() + ")";
+
+            if (!nullable)
+                sqlCreation += " NOT NULL";
+
+            if (autoIncrement)
+                sqlCreation += " AUTO_INCREMENT";
+
+            if (!Objects.equals(defaultValue, ""))
+                sqlCreation += " DEFAULT '" + defaultValue + "'";
+
+            columns.add(new WormColumn(fieldName, sqlName, sqlCreation, idColumn, autoIncrement));
+        }
+        return columns;
     }
 }

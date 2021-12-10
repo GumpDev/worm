@@ -1,4 +1,4 @@
-package dev.gump;
+package dev.gump.worm;
 
 public class WormColumn {
     private final String fieldName;
@@ -14,6 +14,7 @@ public class WormColumn {
         this.idColumn = false;
         this.autoIncrement = false;
     }
+
     public WormColumn(String columnName, String sqlCreation, boolean idColumn) {
         this.fieldName = columnName;
         this.sqlName = columnName;
@@ -21,6 +22,7 @@ public class WormColumn {
         this.idColumn = idColumn;
         this.autoIncrement = false;
     }
+
     public WormColumn(String columnName, String sqlName, String sqlCreation, boolean idColumn) {
         this.fieldName = columnName;
         this.sqlName = sqlName;
@@ -28,6 +30,7 @@ public class WormColumn {
         this.idColumn = idColumn;
         this.autoIncrement = false;
     }
+
     public WormColumn(String columnName, String sqlCreation, boolean idColumn, boolean autoIncrement) {
         this.fieldName = columnName;
         this.sqlName = columnName;
@@ -35,6 +38,7 @@ public class WormColumn {
         this.idColumn = idColumn;
         this.autoIncrement = autoIncrement;
     }
+
     public WormColumn(String columnName, String sqlName, String sqlCreation, boolean idColumn, boolean autoIncrement) {
         this.fieldName = columnName;
         this.sqlName = sqlName;

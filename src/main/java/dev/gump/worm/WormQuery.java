@@ -1,4 +1,4 @@
-package dev.gump;
+package dev.gump.worm;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;

@@ -1,4 +1,4 @@
-package dev.gump;
+package dev.gump.worm;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
