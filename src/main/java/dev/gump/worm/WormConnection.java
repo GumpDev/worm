@@ -1,4 +1,4 @@
-package dev.gump;
+package dev.gump.worm;
 
 public class WormConnection {
     private String ip = "", user = "", password = "", database = "";

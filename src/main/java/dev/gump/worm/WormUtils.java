@@ -1,4 +1,4 @@
-package dev.gump;
+package dev.gump.worm;
 
 public class WormUtils {
     public static String getLastDot(String text){
