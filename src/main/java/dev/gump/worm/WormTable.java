@@ -229,6 +229,8 @@ public class WormTable implements Cloneable, AutoCloseable {
                 return false;
             }
 
+            if(query.getStatement().isClosed()) return false;
+
             if (!set.next()) {
                 query.close();
                 return false;
