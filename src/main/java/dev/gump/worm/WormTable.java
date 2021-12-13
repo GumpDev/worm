@@ -251,6 +251,8 @@ public class WormTable implements Cloneable, AutoCloseable {
                     field.set(this, set.getDouble(column.getSqlName()));
                 else if (type.contains("FLOAT"))
                     field.set(this, set.getFloat(column.getSqlName()));
+                else if (type.contains("LONG"))
+                    field.set(this, set.getLong(column.getSqlName()));
                 else
                     throw new IllegalArgumentException(type + " type is not supported by Worm");
             }
@@ -347,11 +349,6 @@ public class WormTable implements Cloneable, AutoCloseable {
                 field = column;
                 break;
             }
-        }
-
-        if (field == null) {
-            logger.severe("Could not find a id with auto increment column in table " + this.tableName);
-            return null;
         }
 
         return field;
