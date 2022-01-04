@@ -304,6 +304,24 @@ public class WormTable implements Cloneable, AutoCloseable {
         }
     }
 
+    public boolean GetFirst(){
+        WormColumn idColumn = getAutoIncrementIdColumn();
+
+        if (idColumn == null)
+            throw new IllegalStateException("A table must have a primary key column");
+
+        return Get("min("+idColumn.getSqlName()+")");
+    }
+
+    public boolean GetLast(){
+        WormColumn idColumn = getAutoIncrementIdColumn();
+
+        if (idColumn == null)
+            throw new IllegalStateException("A table must have a primary key column");
+
+        return Get("max("+idColumn.getSqlName()+")");
+    }
+
     private void Verify() {
         WormColumn idColumn = getIdColumn();
 
