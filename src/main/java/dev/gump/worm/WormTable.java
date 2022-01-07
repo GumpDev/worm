@@ -241,18 +241,40 @@ public class WormTable implements Cloneable, AutoCloseable {
                 String type = field.getGenericType().toString().toUpperCase(Locale.ROOT);
                 field.setAccessible(true);
 
-                if (type.contains("STRING"))
-                    field.set(this, set.getString(column.getSqlName()));
+                // Java Primitives
+                if (type.contains("BOOL"))
+                    field.set(this, set.getBoolean(column.getSqlName()));
+                else if (type.contains("BYTE") || type.contains("TINYINT"))
+                    field.set(this, set.getByte(column.getSqlName()));
+                else if(type.contains("SHORT"))
+                    field.set(this, set.getShort(column.getSqlName()));
                 else if (type.contains("INT"))
                     field.set(this, set.getInt(column.getSqlName()));
-                else if (type.contains("BOOL"))
-                    field.set(this, set.getBoolean(column.getSqlName()));
-                else if (type.contains("DOUBLE"))
-                    field.set(this, set.getDouble(column.getSqlName()));
-                else if (type.contains("FLOAT"))
-                    field.set(this, set.getFloat(column.getSqlName()));
                 else if (type.contains("LONG"))
                     field.set(this, set.getLong(column.getSqlName()));
+                else if (type.contains("FLOAT"))
+                    field.set(this, set.getFloat(column.getSqlName()));
+                else if (type.contains("DOUBLE"))
+                    field.set(this, set.getDouble(column.getSqlName()));
+
+                // java.math types
+                else if (type.contains("BIGDECIMAL"))
+                    field.set(this, set.getBigDecimal(column.getSqlName()));
+
+                // else if (type.contains("BIGINTEGER"))
+                //    field.set(this, set.getBigInteger(column.getSqlName()));
+
+                // Built-in
+                else if (type.contains("STRING"))
+                    field.set(this, set.getString(column.getSqlName()));
+
+                // Date types
+                else if (type.contains("SQL.DATE"))
+                    field.set(this, set.getDate(column.getSqlName()));
+                else if(type.contains("SQL.TIME"))
+                    field.set(this, set.getTime(column.getSqlName()));
+                else if(type.contains("SQL.TIMESTAMP"))
+                    field.set(this, set.getTimestamp(column.getSqlName()));
                 else
                     throw new IllegalArgumentException(type + " type is not supported by Worm");
             }
