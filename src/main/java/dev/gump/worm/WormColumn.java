@@ -3,47 +3,47 @@ package dev.gump.worm;
 public class WormColumn {
     private final String fieldName;
     private final String sqlName;
-    private final String sqlCreation;
-    private final boolean idColumn;
+    private final String  sqlCreation;
+    private final boolean primaryKey;
     private final boolean autoIncrement;
 
     public WormColumn(String columnName, String sqlCreation) {
         this.fieldName = columnName;
         this.sqlName = columnName;
-        this.sqlCreation = sqlCreation;
-        this.idColumn = false;
+        this.sqlCreation   = sqlCreation;
+        this.primaryKey    = false;
         this.autoIncrement = false;
     }
 
-    public WormColumn(String columnName, String sqlCreation, boolean idColumn) {
-        this.fieldName = columnName;
-        this.sqlName = columnName;
-        this.sqlCreation = sqlCreation;
-        this.idColumn = idColumn;
+    public WormColumn(String columnName, String sqlCreation, boolean primaryKey) {
+        this.fieldName     = columnName;
+        this.sqlName       = columnName;
+        this.sqlCreation   = sqlCreation;
+        this.primaryKey    = primaryKey;
         this.autoIncrement = false;
     }
 
-    public WormColumn(String columnName, String sqlName, String sqlCreation, boolean idColumn) {
-        this.fieldName = columnName;
-        this.sqlName = sqlName;
-        this.sqlCreation = sqlCreation;
-        this.idColumn = idColumn;
+    public WormColumn(String columnName, String sqlName, String sqlCreation, boolean primaryKey) {
+        this.fieldName     = columnName;
+        this.sqlName       = sqlName;
+        this.sqlCreation   = sqlCreation;
+        this.primaryKey    = primaryKey;
         this.autoIncrement = false;
     }
 
-    public WormColumn(String columnName, String sqlCreation, boolean idColumn, boolean autoIncrement) {
-        this.fieldName = columnName;
-        this.sqlName = columnName;
-        this.sqlCreation = sqlCreation;
-        this.idColumn = idColumn;
+    public WormColumn(String columnName, String sqlCreation, boolean primaryKey, boolean autoIncrement) {
+        this.fieldName     = columnName;
+        this.sqlName       = columnName;
+        this.sqlCreation   = sqlCreation;
+        this.primaryKey    = primaryKey;
         this.autoIncrement = autoIncrement;
     }
 
-    public WormColumn(String columnName, String sqlName, String sqlCreation, boolean idColumn, boolean autoIncrement) {
-        this.fieldName = columnName;
-        this.sqlName = sqlName;
-        this.sqlCreation = sqlCreation;
-        this.idColumn = idColumn;
+    public WormColumn(String columnName, String sqlName, String sqlCreation, boolean primaryKey, boolean autoIncrement) {
+        this.fieldName     = columnName;
+        this.sqlName       = sqlName;
+        this.sqlCreation   = sqlCreation;
+        this.primaryKey    = primaryKey;
         this.autoIncrement = autoIncrement;
     }
 
@@ -59,8 +59,8 @@ public class WormColumn {
         return sqlCreation;
     }
 
-    public boolean isId() {
-        return idColumn;
+    public boolean isPrimaryKey() {
+        return primaryKey;
     }
 
     public boolean isAutoIncrement() {

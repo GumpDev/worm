@@ -12,7 +12,7 @@ public @interface WormField {
 	String sqlName() default "";
 	int length() default 0;
 	boolean autoIncrement() default false;
-	boolean idColumn() default false;
+	boolean primaryKey() default false;
 	String defaultValue() default "";
 	boolean nullable() default false;
 }
