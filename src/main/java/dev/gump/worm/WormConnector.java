@@ -39,4 +39,8 @@ public class WormConnector {
         Connection connection = hikariDataSource.getConnection();
         return new WormQuery(connection, connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS));
     }
+
+    public static void Close() {
+        hikariDataSource.close();
+    }
 }
