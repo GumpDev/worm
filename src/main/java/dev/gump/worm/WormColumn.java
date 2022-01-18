@@ -7,6 +7,7 @@ public class WormColumn {
     private final boolean primaryKey;
     private final boolean autoIncrement;
 
+    @Deprecated
     public WormColumn(String columnName, String sqlCreation) {
         this.fieldName = columnName;
         this.sqlName = columnName;
@@ -15,6 +16,7 @@ public class WormColumn {
         this.autoIncrement = false;
     }
 
+    @Deprecated
     public WormColumn(String columnName, String sqlCreation, boolean primaryKey) {
         this.fieldName     = columnName;
         this.sqlName       = columnName;
@@ -23,6 +25,7 @@ public class WormColumn {
         this.autoIncrement = false;
     }
 
+    @Deprecated
     public WormColumn(String columnName, String sqlName, String sqlCreation, boolean primaryKey) {
         this.fieldName     = columnName;
         this.sqlName       = sqlName;
@@ -31,6 +34,7 @@ public class WormColumn {
         this.autoIncrement = false;
     }
 
+    @Deprecated
     public WormColumn(String columnName, String sqlCreation, boolean primaryKey, boolean autoIncrement) {
         this.fieldName     = columnName;
         this.sqlName       = columnName;
