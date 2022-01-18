@@ -1,9 +1,9 @@
 package dev.gump.worm;
 
+import dev.gump.worm.typeadapter.WormTypeAdapter;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Field;
-import java.math.BigDecimal;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -117,21 +117,15 @@ public class WormTable implements AutoCloseable, Cloneable {
                     field.set(instance, set.getDouble(column.getSqlName()));
                 else if (type == String.class)
                     field.set(instance, set.getString(column.getSqlName()));
+                else {
+                    @SuppressWarnings("rawtypes")
+                    WormTypeAdapter typeAdapter = Worm.getTypeAdapterRegistry().getTypeAdapter(type);
+                    if (typeAdapter == null)
+                        throw new WormException(type.getName() + " type is not supported!");
 
-                // Java Math
-                else if (type == BigDecimal.class)
-                    field.set(instance, set.getBigDecimal(column.getSqlName()));
-
-                // Date types
-                else if (type == Date.class)
-                    field.set(instance, set.getDate(column.getSqlName()));
-                else if (type == Time.class)
-                    field.set(instance, set.getTime(column.getSqlName()));
-                else if (type == Timestamp.class)
-                    field.set(instance, set.getTimestamp(column.getSqlName()));
-
-                else
-                    throw new WormException(type + " type is not supported by Worm");
+                    Object result = typeAdapter.fromDatabase(set, column.getSqlName());
+                    field.set(instance, result);
+                }
             }
 
             return true;

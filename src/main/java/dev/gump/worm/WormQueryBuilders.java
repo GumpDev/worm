@@ -1,5 +1,7 @@
 package dev.gump.worm;
 
+import dev.gump.worm.typeadapter.WormTypeAdapter;
+
 import java.lang.reflect.Field;
 import java.util.Iterator;
 
@@ -28,6 +30,7 @@ public class WormQueryBuilders {
         return builder.toString();
     }
 
+    @SuppressWarnings({"rawtypes", "unchecked"})
     static String buildInsertQuery(WormTableMeta tableMeta, WormTable table) throws NoSuchFieldException, IllegalAccessException {
         StringBuilder builder = new StringBuilder("INSERT INTO `").append(tableMeta.getName()).append("`(");
         boolean first = true;
@@ -47,7 +50,15 @@ public class WormQueryBuilders {
             builder.append(first ? "" : ", ");
 
             if (value != null) {
-                builder.append('\'').append(WormUtils.escapeToSql(value.toString())).append('\'');
+                String stringValue;
+
+                WormTypeAdapter typeAdapter = Worm.getTypeAdapterRegistry().getTypeAdapter(field.getType());
+                if (typeAdapter != null)
+                    stringValue = typeAdapter.toDatabase(value);
+                else
+                    stringValue = value.toString();
+
+                builder.append('\'').append(WormUtils.escapeToSql(stringValue)).append('\'');
             } else {
                 builder.append("DEFAULT");
             }
@@ -58,6 +69,7 @@ public class WormQueryBuilders {
         return builder.toString();
     }
 
+    @SuppressWarnings({"rawtypes", "unchecked"})
     static String buildUpdateQuery(WormTableMeta tableMeta, WormTable table, String whereClause, int limit) throws NoSuchFieldException, IllegalAccessException {
         StringBuilder builder = new StringBuilder("UPDATE `").append(tableMeta.getName()).append("` SET ");
 
@@ -69,10 +81,19 @@ public class WormQueryBuilders {
 
             builder.append(first ? "" : ", ").append('`').append(column.getSqlName()).append("`=");
 
-            if (value != null)
-                builder.append('\'').append(WormUtils.escapeToSql(value.toString())).append('\'');
-            else
+            if (value != null) {
+                String stringValue;
+
+                WormTypeAdapter typeAdapter = Worm.getTypeAdapterRegistry().getTypeAdapter(field.getType());
+                if (typeAdapter != null)
+                    stringValue = typeAdapter.toDatabase(value);
+                else
+                    stringValue = value.toString();
+
+                builder.append('\'').append(WormUtils.escapeToSql(stringValue)).append('\'');
+            } else {
                 builder.append("DEFAULT");
+            }
 
             first = false;
         }

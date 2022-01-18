@@ -18,12 +18,14 @@ public class Worm {
     private static final Logger logger = LoggerFactory.getLogger("Worm Logger");
 
     private final WormRegistry wormRegistry;
+    private final WormTypeAdapterRegistry wormTypeAdapterRegistry;
     private final ExecutorService executor;
     private HikariDataSource hikariDataSource;
     private boolean isDebug;
 
     private Worm() {
         this.wormRegistry = new WormRegistry();
+        this.wormTypeAdapterRegistry = new WormTypeAdapterRegistry();
         this.executor = Executors.newCachedThreadPool();
     }
 
@@ -58,6 +60,10 @@ public class Worm {
 
     public static WormRegistry getRegistry() {
         return instance.wormRegistry;
+    }
+
+    public static WormTypeAdapterRegistry getTypeAdapterRegistry() {
+        return instance.wormTypeAdapterRegistry;
     }
 
     public static WormQuery query(String sql) throws SQLException {
