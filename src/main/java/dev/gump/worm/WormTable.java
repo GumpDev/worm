@@ -1,166 +1,52 @@
 package dev.gump.worm;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.lang.reflect.Field;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.math.BigDecimal;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
-public abstract class WormTable implements Cloneable, AutoCloseable {
-    private static final List<String> initializedTables = new ArrayList<>();
-    private final List<WormColumn> columns;
-    private final String tableName;
-    private WormQuery query;
-    private final Logger logger;
+public class WormTable implements AutoCloseable, Cloneable {
+    private final WormTableMeta tableMeta;
+    private WormQuery currentQuery;
 
-    //region Constructors
     public WormTable() {
-        this.columns = getColumnsFromClass();
-        this.tableName = WormUtils.getLastDot(this.getClass().getName());
-        this.logger = Logger.getLogger(this.tableName + " Logger");
-
-        Verify();
-        Create();
-    }
-
-    public WormTable(String tableName) {
-        this.columns = getColumnsFromClass();
-        this.tableName = tableName;
-        this.logger = Logger.getLogger(this.tableName + " Logger");
-
-        Verify();
-        Create();
-    }
-
-    @Deprecated(forRemoval = true)
-    public WormTable(List<WormColumn> columns) {
-        this.columns = columns;
-        this.tableName = WormUtils.getLastDot(this.getClass().getName());
-        this.logger = Logger.getLogger(this.tableName + " Logger");
-
-        Verify();
-        Create();
-    }
-
-    @Deprecated(forRemoval = true)
-    public WormTable(String tableName, List<WormColumn> columns) {
-        this.columns = columns;
-        this.tableName = tableName;
-        this.logger = Logger.getLogger(this.tableName + " Logger");
-
-        Verify();
-        Create();
-    }
-    //endregion
-
-    /**
-     * Create the table if it doesn't exist in the database
-     */
-    private void Create() {
-        if(initializedTables.contains(tableName)) return;
-
-        // Define all columns
-        StringBuilder sql = new StringBuilder("CREATE TABLE IF NOT EXISTS `" + tableName + "` (");
-        boolean first = true;
-        for (WormColumn column : columns) {
-            sql.append(first ? "" : ", ")
-                    .append(column.getSqlName()).append(" ").append(column.getSqlCreation());
-            first = false;
-        }
-
-        // Define all Primary Keys
-        first = true;
-        for (WormColumn column : this.getPrimaryKeys()) {
-            if(first) sql.append(", PRIMARY KEY (");
-            sql.append(first ? "" : ", ").append(column.getSqlName());
-            first = false;
-        }
-        if (!first) sql.append(")");
-        sql.append(")");
-
-        // Try to execute the SQL
-        try (WormQuery query = WormConnector.Query(sql.toString())) {
-            query.executeUpdate();
-            initializedTables.add(tableName);
-        } catch (SQLException exception) {
-            logger.log(Level.SEVERE, "Something went wrong while creating table " + this.tableName, exception);
-        }
+        this.tableMeta = Worm.getRegistry().getTableMeta(getClass());
     }
 
     //region Insert
     /**
-     * Inserts a new row with the instance data
+     * Inserts a new row with the instance data.
      *
-     * @return If the operation was successful
+     * @return If the operation was successful.
      */
-    public Boolean Insert() {
-        StringBuilder sql = new StringBuilder("INSERT INTO `" + tableName + "` (");
-        boolean first = true;
-        for (WormColumn column : columns) {
-            sql.append(first ? "" : ", ").append(column.getSqlName());
-            first = false;
-        }
-        sql.append(") VALUES (");
-        first = true;
-        for (WormColumn column : columns) {
-            try {
-                Field field = this.getClass().getDeclaredField(column.getFieldName());
-                field.setAccessible(true);
-                Object value = field.get(this);
-
-                if (value != null) {
-                    sql.append(first ? "" : ", ").append("'").append(WormUtils.escapeToSql(value.toString())).append("'");
-                } else {
-                    sql.append(first ? "" : ", ").append("DEFAULT");
-                }
-            } catch (Exception exception) {
-                logger.log(Level.SEVERE, "Something went wrong while collecting " + this.tableName + "'s " + column.getFieldName() + " value", exception);
-                return false;
-            }
-            first = false;
-        }
-        sql.append(")");
-
+    public boolean insert() {
         try {
-            WormQuery query;
-            WormColumn autoIncrementColumn = getAutoIncrementColumn();
+            String strQuery = WormQueryBuilders.buildInsertQuery(tableMeta, this);
+            WormColumn autoIncrementColumn = tableMeta.getAutoIncrementColumn();
 
-            // If it has an auto-increment column, the value has to be generated by the database
-            if (autoIncrementColumn == null)
-                query = WormConnector.Query(sql.toString());
-            else
-                query = WormConnector.QueryWithGeneratedKeys(sql.toString());
-
-            // Try executing the query
+            WormQuery query = autoIncrementColumn == null ? Worm.query(strQuery) : Worm.queryWithGeneratedKeys(strQuery);
             try (query) {
                 query.executeUpdate();
 
-                // Try setting the auto-generated id to the instance
                 if (autoIncrementColumn != null) {
-                    try {
-                        ResultSet generatedKeys = query.getStatement().getGeneratedKeys();
+                    ResultSet generatedKeys = query.getStatement().getGeneratedKeys();
 
-                        if (generatedKeys.next()) {
-                            int   generatedId = generatedKeys.getInt(generatedKeys.getRow());
-                            Field field       = this.getClass().getDeclaredField(autoIncrementColumn.getFieldName());
-                            field.setAccessible(true);
-                            field.set(this, generatedId);
-                        }
-
-                    } catch (Exception exception) {
-                        logger.log(Level.SEVERE, "Something went wrong while setting generated keys into table " + this.tableName, exception);
-                        return false;
+                    if (generatedKeys.next()) {
+                        int generatedId = generatedKeys.getInt(1);
+                        Field field = this.getClass().getDeclaredField(autoIncrementColumn.getFieldName());
+                        field.setAccessible(true);
+                        field.set(this, generatedId);
                     }
                 }
-
-                return true;
             }
-        } catch (SQLException exception) {
-            logger.log(Level.SEVERE, "Something went wrong while inserting into table " + this.tableName, exception);
+
+            return true;
+        } catch (Exception exception) {
+            Worm.getLogger().error("Something went wrong while inserting table " + tableMeta.getName(), exception);
             return false;
         }
     }
@@ -168,89 +54,89 @@ public abstract class WormTable implements Cloneable, AutoCloseable {
 
     //region Next
     /**
-     * Parses the result of a row of a query to this instance of WormTable
+     * Parses the next row of the current query on this instance.
      *
-     * @return Whether the operation was successful
+     * @return If the operation was successful.
      */
-    public Boolean Next() { return this.Next(this); }
+    public boolean next() { return this.next(this); }
 
     /**
-     * Parses the result of a row of a query to an instance of WormTable
+     * Parses the next row of the current query on {@code instance} parameter.
      *
-     * @param instance The instance that will receive the values
-     * @param <T> The type of the instance
-     * @return Whether the operation was successful
+     * @param instance The instance that will receive the values.
+     * @return If the operation was successful.
      */
-    public<T extends WormTable> Boolean Next(T instance) {
-        if (query == null) {
-            logger.severe("Cannot advance with ResultSet without a query");
-            return false;
-        }
-
+    public boolean next(WormTable instance) {
         try {
-            ResultSet set = query.getResultSet();
+            Objects.requireNonNull(currentQuery, "Cannot advance without a query!");
+
+            if (currentQuery.getStatement().isClosed())
+                throw new WormException("Statement was closed");
+
+            ResultSet set = currentQuery.getResultSet();
 
             if (set == null) {
-                logger.severe("Cannot advance with ResultSet without a query");
-                query.close();
-                return false;
+                currentQuery.close();
+                throw new WormException("Result Set is null");
             }
-
-            if(query.getStatement().isClosed()) return false;
 
             // If no more rows close query
             if (!set.next()) {
-                query.close();
+                currentQuery.close();
                 return false;
             }
 
             // Parse all known types
-            for (WormColumn column : columns) {
+            for (WormColumn column : tableMeta.getAllColumns()) {
                 Field field = instance.getClass().getDeclaredField(column.getFieldName());
-                String type = field.getGenericType().toString().toUpperCase(Locale.ROOT);
                 field.setAccessible(true);
 
+                if (set.getObject(column.getSqlName()) == null) {
+                    field.set(instance, null);
+                    continue;
+                }
+
+                Class<?> type = field.getType();
+
                 // Java Primitives
-                if (type.contains("BOOL"))
+                if (type == boolean.class || type == Boolean.class)
                     field.set(instance, set.getBoolean(column.getSqlName()));
-                else if (type.contains("BYTE") || type.contains("TINYINT"))
+                else if (type == char.class || type == Character.class)
+                    field.set(instance, set.getString(column.getSqlName()).charAt(0));
+                else if (type == byte.class || type == Byte.class)
                     field.set(instance, set.getByte(column.getSqlName()));
-                else if(type.contains("SHORT"))
+                else if (type == short.class || type == Short.class)
                     field.set(instance, set.getShort(column.getSqlName()));
-                else if (type.contains("INT"))
+                else if (type == int.class || type == Integer.class)
                     field.set(instance, set.getInt(column.getSqlName()));
-                else if (type.contains("LONG"))
+                else if (type == long.class || type == Long.class)
                     field.set(instance, set.getLong(column.getSqlName()));
-                else if (type.contains("FLOAT"))
+                else if (type == float.class || type == Float.class)
                     field.set(instance, set.getFloat(column.getSqlName()));
-                else if (type.contains("DOUBLE"))
+                else if (type == double.class || type == Double.class)
                     field.set(instance, set.getDouble(column.getSqlName()));
-
-                    // java.math types
-                else if (type.contains("BIGDECIMAL"))
-                    field.set(instance, set.getBigDecimal(column.getSqlName()));
-
-                    // else if (type.contains("BIGINTEGER"))
-                    //    field.set(instance, set.getBigInteger(column.getSqlName()));
-
-                    // Built-in
-                else if (type.contains("STRING"))
+                else if (type == String.class)
                     field.set(instance, set.getString(column.getSqlName()));
 
-                    // Date types
-                else if (type.contains("SQL.DATE"))
+                // Java Math
+                else if (type == BigDecimal.class)
+                    field.set(instance, set.getBigDecimal(column.getSqlName()));
+
+                // Date types
+                else if (type == Date.class)
                     field.set(instance, set.getDate(column.getSqlName()));
-                else if(type.contains("SQL.TIME"))
+                else if (type == Time.class)
                     field.set(instance, set.getTime(column.getSqlName()));
-                else if(type.contains("SQL.TIMESTAMP"))
+                else if (type == Timestamp.class)
                     field.set(instance, set.getTimestamp(column.getSqlName()));
+
                 else
-                    throw new IllegalArgumentException(type + " type is not supported by Worm");
+                    throw new WormException(type + " type is not supported by Worm");
             }
 
             return true;
         } catch (Exception exception) {
-            logger.log(Level.SEVERE, "Something went wrong while advancing to next row in table " + this.tableName, exception);
+            Worm.getLogger().error("Something went wrong while advancing to next row in table " + tableMeta.getName(), exception);
             return false;
         }
     }
@@ -258,89 +144,85 @@ public abstract class WormTable implements Cloneable, AutoCloseable {
 
     //region Update
     /**
-     * Updates one row with the data that is in this instance.
-     * Will return false if the table has no Primary Keys
+     * Updates one row with the current data of this instance using this instance's primary key values as the query's primary key values in the where clause.
      *
-     * @return If the operation was successful
+     * @return {@code true} if the operation was successful, {@code false} if one or more primary key values are null or something else went wrong.
      */
-    public Boolean Update() {
-        List<WormColumn> primaryKeys = getPrimaryKeys();
-        if (primaryKeys.size() == 0) return false;
+    public boolean update() {
+        return update(0);
+    }
 
+    /**
+     * Updates one row with the current data of this instance using this instance's primary key values as the query's primary key values in the where clause.
+     *
+     * @param limit The limit of rows that will be updated.
+     * @return {@code true} if the operation was successful, {@code false} if one or more primary key values are null or something else went wrong.
+     */
+    public boolean update(int limit) {
         try {
-            String sql = this.getPrimaryKeysSQL(true);
-
-            return UpdateFromSQL(sql);
+            String whereClause = WormQueryBuilders.buildPrimaryKeyWhereClause(tableMeta, this, false);
+            return updateWhere(whereClause, limit);
         } catch (Exception exception) {
-            logger.log(Level.SEVERE, "Something went wrong while updating into table " + this.tableName + " with instance data", exception);
+            Worm.getLogger().error("Something went wrong while updating table " + tableMeta.getName(), exception);
             return false;
         }
     }
 
     /**
-     * Updates rows that match this primaryKey.
+     * Update row(s) with the current data of this instance using {@code keys} as the query's primary key values in the where clause.
      *
-     * Will return false if the table has no primary keys.
-     *
-     * The primaryKey can be partial.
-     *
-     * @param primaryKey The table id values
-     * @return Whether the operation was successful
+     * @param keys The primary key values. It should follow primary key field definition order, and it can be partial.
+     * @return {@code true} if the operation was successful, {@code false} if {@code keys} is invalid or something else went wrong.
      */
-    public boolean UpdateFromKey(Object... primaryKey) {
-        if (primaryKey == null) return false;
-
-        List<WormColumn> primaryKeys = getPrimaryKeys();
-        if (primaryKeys.size() == 0) return false;
-
-        String sql = this.getPrimaryKeysSQL(primaryKey);
-        return UpdateFromSQL(sql);
+    public boolean updateWithCustomKeys(Object... keys) {
+        return updateWithCustomKeys(0, keys);
     }
 
     /**
-     * Updates all rows that matches the given SQL
-     * setting the data that is in this instance
+     * Update row(s) with the current data of this instance using {@code keys} as the query's primary key values in the where clause.
      *
-     * @return If the operation was successful
+     * @param limit The limit of rows that will be updated.
+     * @param keys The primary key values. It should follow primary key field definition order, and it can be partial.
+     * @return {@code true} if the operation was successful, {@code false} if {@code keys} is invalid or something else went wrong.
      */
-    public Boolean UpdateFromSQL(String where) { return this.UpdateFromSQL(where, -1); }
+    public boolean updateWithCustomKeys(int limit, Object... keys) {
+        try {
+            if (keys == null || keys.length == 0) return false;
+            if (tableMeta.getPrimaryKeyColumns().size() != keys.length)
+                throw new WormException("Wrong number of keys! Table primary key count: " + tableMeta.getPrimaryKeyColumns().size() + " | Argument count: " + keys.length + " | Table: " + tableMeta.getName());
+
+            String whereClause = WormQueryBuilders.buildCustomPrimaryKeyWhereClause(tableMeta, keys);
+            return updateWhere(whereClause, limit);
+        } catch (Exception exception) {
+            Worm.getLogger().error("Something went wrong while updating in table " + tableMeta.getName(), exception);
+            return false;
+        }
+    }
 
     /**
-     * Updates all rows that matches the given SQL
-     * setting the data that is in this instance
+     * Update row(s) with the current data of this instance using {@code whereClause} as the query's where clause.
      *
-     * @param limit The limit of rows that will be updated
-     * @return If the operation was successful
+     * @param whereClause The where clause.
+     * @return If the operation was successful.
      */
-    public Boolean UpdateFromSQL(String where, int limit) {
-        StringBuilder sql = new StringBuilder("UPDATE `" + tableName + "` SET ");
-        boolean first = true;
-        for(WormColumn column : columns) {
-            sql.append(first ? "" : ", ").append(column.getSqlName()).append(" = ");
-            try {
-                Field field = this.getClass().getDeclaredField(column.getFieldName());
-                field.setAccessible(true);
-                Object value = field.get(this);
+    public boolean updateWhere(String whereClause) { return this.updateWhere(whereClause, 0); }
 
-                if (value != null) {
-                    sql.append("'").append(WormUtils.escapeToSql(value.toString())).append("'");
-                } else {
-                    sql.append("DEFAULT");
-                }
-            } catch (Exception exception) {
-                logger.log(Level.SEVERE, "Something went wrong while collecting " + this.tableName + "'s " + column.getFieldName() + " value", exception);
-                return false;
+    /**
+     * Update row(s) with the current data of this instance using {@code whereClause} as the query's where clause.
+     *
+     * @param whereClause The where clause.
+     * @param limit The limit of rows that will be updated.
+     * @return If the operation was successful.
+     */
+    public boolean updateWhere(String whereClause, int limit) {
+        try {
+            String strQuery = WormQueryBuilders.buildUpdateQuery(tableMeta, this, whereClause, limit);
+            try (WormQuery query = Worm.query(strQuery)) {
+                query.executeUpdate();
             }
-            first = false;
-        }
-        sql.append(" WHERE ").append(where);
-        if(limit > 0) sql.append(" LIMIT ").append(limit);
-
-        try (WormQuery query = WormConnector.Query(sql.toString())) {
-            query.executeUpdate();
             return true;
-        } catch (SQLException exception) {
-            logger.log(Level.SEVERE, "Something went wrong while inserting into table " + this.tableName, exception);
+        } catch (Exception exception) {
+            Worm.getLogger().error("Something went wrong while updating table " + tableMeta.getName(), exception);
             return false;
         }
     }
@@ -348,66 +230,93 @@ public abstract class WormTable implements Cloneable, AutoCloseable {
 
     //region Delete
     /**
-     * Deletes one row with the data that is in this instance.
-     * Will return false if the table has no Primary Keys
+     * Delete one row using this instance's primary key values as the query's primary key values in the where clause.
      *
-     * @return If the operation was successful
+     * @return {@code true} if the operation was successful, {@code false} if one or more primary key values are null or something else went wrong.
      */
-    public Boolean Delete() {
-        try {
-           String sql = this.getPrimaryKeysSQL(true);
-            return DeleteFromSQL(sql);
+    public boolean delete() {
+        return delete(0);
+    }
 
+    /**
+     * Delete one row using this instance's primary key values as the query's primary key values in the where clause.
+     *
+     * @param limit The limit of rows that will be deleted.
+     * @return {@code true} if the operation was successful, {@code false} if one or more primary key values are null or something else went wrong.
+     */
+    public boolean delete(int limit) {
+        try {
+            String whereClause = WormQueryBuilders.buildPrimaryKeyWhereClause(tableMeta, this, false);
+            return deleteWhere(whereClause, limit);
         } catch (Exception exception) {
-            logger.log(Level.SEVERE, "Something went wrong while deleting from table " + this.tableName + " with instance data", exception);
+            Worm.getLogger().error("Something went wrong while deleting table " + tableMeta.getName(), exception);
             return false;
         }
     }
 
     /**
-     * Deletes rows that match this primaryKey.
+     * Delete row(s) using {@code keys} as the query's primary key values in the where clause.
      *
-     * Will return false if the table has no primary keys.
-     *
-     * The primaryKey can be partial.
-     *
-     * @param primaryKey The table id values
-     * @return Whether the operation was successful
+     * @param keys The primary key values. It should follow primary key field definition order, and it can be partial.
+     * @return {@code true} if the operation was successful, {@code false} if {@code keys} is invalid or something else went wrong.
      */
-    public Boolean DeleteFromKey(Object... primaryKey) {
-        if (primaryKey == null) return false;
-
-        List<WormColumn> primaryKeys = getPrimaryKeys();
-        if (primaryKeys.size() == 0) return false;
-
-        String sql = this.getPrimaryKeysSQL(primaryKey);
-        return DeleteFromSQL(sql);
+    public boolean deleteWithCustomKeys(Object... keys) {
+        return deleteWithCustomKeys(0, keys);
     }
 
     /**
-     * Deletes rows with the given SQL
+     * Delete row(s) using {@code keys} as the query's primary key values in the where clause.
      *
-     * @param where The SQL where clause
-     * @return If the operation was successful
+     * @param limit The limit of rows that will be deleted.
+     * @param keys The primary key values. It should follow primary key field definition order, and it can be partial.
+     * @return {@code true} if the operation was successful, {@code false} if {@code keys} is invalid or something else went wrong.
      */
-    public Boolean DeleteFromSQL(String where) { return this.DeleteFromSQL(where, -1); }
+    public boolean deleteWithCustomKeys(int limit, Object... keys) {
+        try {
+            if (keys == null || keys.length == 0) return false;
+            if (tableMeta.getPrimaryKeyColumns().size() != keys.length)
+                throw new WormException("Wrong number of keys! Table primary key count: " + tableMeta.getPrimaryKeyColumns().size() + " | Argument count: " + keys.length + " | Table: " + tableMeta.getName());
+
+            String whereClause = WormQueryBuilders.buildCustomPrimaryKeyWhereClause(tableMeta, keys);
+            return deleteWhere(whereClause, limit);
+        } catch (Exception exception) {
+            Worm.getLogger().error("Something went wrong while deleting in table " + tableMeta.getName(), exception);
+            return false;
+        }
+    }
 
     /**
-     * Deletes rows with the given SQL
+     * Delete row(s) using {@code whereClause} as the query's where clause.
      *
-     * @param where The SQL where clause
-     * @param limit The limit of rows that will be deleted
-     * @return If the operation was successful
+     * @param whereClause The where clause.
+     * @return If the operation was successful.
      */
-    public Boolean DeleteFromSQL(String where, int limit) {
-        String sql = "DELETE FROM `" + tableName + "` WHERE " + where;
-        if(limit > 0) sql += " LIMIT "+ limit;
+    public boolean deleteWhere(String whereClause) { return this.deleteWhere(whereClause, 0); }
 
-        try (WormQuery query = WormConnector.Query(sql)) {
-            query.executeUpdate();
+    /**
+     * Delete row(s) using {@code whereClause} as the query's where clause.
+     *
+     * @param whereClause The where clause.
+     * @param limit The limit of rows that will be deleted.
+     * @return If the operation was successful.
+     */
+    public boolean deleteWhere(String whereClause, int limit) {
+        try {
+            StringBuilder sqlBuilder = new StringBuilder("DELETE FROM `").append(tableMeta.getName()).append("`");
+
+            if (whereClause != null)
+                sqlBuilder.append(" WHERE ").append(whereClause);
+
+            if (limit > 0)
+                sqlBuilder.append(" LIMIT ").append(limit);
+
+            try (WormQuery query = Worm.query(sqlBuilder.toString())) {
+                query.executeUpdate();
+            }
+
             return true;
-        } catch (SQLException exception) {
-            logger.log(Level.SEVERE, "Something went wrong while deleting from table " + this.tableName, exception);
+        } catch (Exception exception) {
+            Worm.getLogger().error("Something went wrong while deleting table " + tableMeta.getName(), exception);
             return false;
         }
     }
@@ -415,69 +324,92 @@ public abstract class WormTable implements Cloneable, AutoCloseable {
 
     //region Find
     /**
-     * Finds one row that match the instance Primary Keys data
-     * parses its information to this instance.
+     * Finds and parses the row that match this instance's primary key values in the where clause.
      *
-     * Will return false if any PK is null
-     * or the table has no primary keys.
-     *
-     * @return Whether the operation was successful
+     * @return {@code true} if the operation was successful, {@code false} if one or more primary key values are null or something else went wrong.
      */
-    public Boolean FindFromSQL() {
+    public boolean find() {
         try {
-            String sql = this.getPrimaryKeysSQL(true);
-            return this.FindFromSQL(sql);
+            String whereClause = WormQueryBuilders.buildPrimaryKeyWhereClause(tableMeta, this, false);
+            if (!findWhere(whereClause, 0, 1)) return false;
 
+            return next();
         } catch (Exception exception) {
-            logger.log(Level.SEVERE, "Something went wrong while finding in table " + this.tableName + " with instance data", exception);
+            Worm.getLogger().error("Something went wrong while finding in table " + tableMeta.getName(), exception);
             return false;
         }
     }
 
     /**
-     * Finds one row that match this primaryKey and
-     * parses its information to this instance.
+     * Finds and parses the row that match {@code keys} values in the where clause.
      *
-     * Will return false if not enough arguments are passed
-     * or the table has no primary keys.
-     *
-     * @param primaryKey The table id values
-     * @return Whether the operation was successful
+     * @param keys The primary key values. It should follow primary key field definition order, and it can be partial.
+     * @return {@code true} if the operation was successful, {@code false} if {@code keys} is invalid or something else went wrong.
      */
-    public Boolean FindFromKey(Object... primaryKey) {
-        if (primaryKey == null) return false;
+    public boolean findWithCustomKeys(Object... keys) {
+        try {
+            if (keys == null || keys.length == 0) return false;
+            if(tableMeta.getPrimaryKeyColumns().size() != keys.length)
+                throw new WormException("Wrong number of keys! Table primary key count: " + tableMeta.getPrimaryKeyColumns().size() + " | Argument count: " + keys.length + " | Table: " + tableMeta.getName());
 
-        List<WormColumn> primaryKeys = getPrimaryKeys();
-        if (primaryKeys.size() == 0) return false;
-        if(primaryKeys.size() != primaryKey.length) return false;
+            String whereClause = WormQueryBuilders.buildCustomPrimaryKeyWhereClause(tableMeta, keys);
+            if (!findWhere(whereClause, 0, 1)) return false;
 
-       String sql = this.getPrimaryKeysSQL(primaryKey);
-
-        return FindFromSQL(sql);
+            return next();
+        } catch (Exception exception) {
+            Worm.getLogger().error("Something went wrong while finding in table " + tableMeta.getName(), exception);
+            return false;
+        }
     }
 
     /**
-     * Finds one row with the given SQL and
-     * parses its information to this instance.
+     * Finds and parses the row using {@code whereClause} as the query's where clause.
      *
-     * The connection is closed afterwards.
-     *
-     * @param where The SQL where clause
+     * @param whereClause The where clause.
      * @return If the operation was successful
      */
-    public Boolean FindFromSQL(String where) {
-        String sql = "SELECT * FROM `" + this.tableName + "` WHERE " + where ;
+    public boolean findWhere(String whereClause) {
+        return findWhere(whereClause, 0, 0);
+    }
 
+    /**
+     * Finds and parses the row using {@code whereClause} as the query's where clause.
+     *
+     * @param whereClause The where clause.
+     * @param limit The limit of rows that will be found.
+     * @return If the operation was successful.
+     */
+    public boolean findWhere(String whereClause, int limit) {
+        return findWhere(whereClause, 0, limit);
+    }
+
+    /**
+     * Finds and parses the row using {@code whereClause} as the query's where clause.
+     *
+     * @param whereClause The where clause.
+     * @param limit The limit of rows that will be found.
+     * @return If the operation was successful.
+     */
+    public boolean findWhere(String whereClause, int offset, int limit) {
         try {
-            this.query = WormConnector.Query(sql);
-            this.query.executeQuery();
+            StringBuilder sqlBuilder = new StringBuilder("SELECT * FROM `").append(tableMeta.getName()).append('`');
 
-            boolean next = Next();
-            this.query.close();
-            return next;
+            if (whereClause != null)
+                sqlBuilder.append(" WHERE ").append(whereClause);
 
-        } catch (SQLException exception) {
-            logger.log(Level.SEVERE, "Something went wrong while finding in table " + this.tableName, exception);
+            if(limit > 0) {
+                if (offset > 0)
+                    sqlBuilder.append(" LIMIT ").append(offset).append(',').append(limit);
+                else
+                    sqlBuilder.append(" LIMIT ").append(limit);
+            }
+
+            this.currentQuery = Worm.query(sqlBuilder.toString());
+            this.currentQuery.executeQuery();
+
+            return true;
+        } catch (Exception exception) {
+            Worm.getLogger().error("Something went wrong while finding in table " + tableMeta.getName(), exception);
             return false;
         }
     }
@@ -485,357 +417,200 @@ public abstract class WormTable implements Cloneable, AutoCloseable {
 
     //region FindAll
     /**
-     * Finds all the results match this primaryKey and
-     * parses its information to this instance.
+     * Finds all rows matching {@code keys} values in where clause and returns it.
      *
-     * Will return nothing if the table has no primary keys.
-     *
-     * @param primaryKey The table id values
-     * @param <T> The type of the results
-     * @return Whether the operation was successful
+     * @param keys The primary key values. It should follow primary key field definition order, and it can be partial.
+     * @param <T> The type of the results.
+     * @return If the operation was successful.
      */
-    public<T extends WormTable> List<T> findAllFromKey(Object... primaryKey) {
-        if (primaryKey == null) return new ArrayList<>();
-
-        List<WormColumn> primaryKeys = getPrimaryKeys();
-        if (primaryKeys.size() == 0) return new ArrayList<>();
-
-        String sql = this.getPrimaryKeysSQL(primaryKey);
-
-        return this.findAllFromSQL(sql);
+    @Nullable
+    public <T extends WormTable> List<T> findAllWithKeys(Object... keys) {
+        return findAllWithKeys(0, 0, keys);
     }
 
     /**
-     * Finds all the results match this primaryKey and
-     * parses its information to this instance.
+     * Finds all rows matching {@code keys} values in where clause and returns it.
      *
-     * Will return nothing if the table has no primary keys.
-     *
-     * @param limit The limit of rows the result will contain
-     * @param primaryKey The table id values
-     * @param <T> The type of the results
-     * @return Whether the operation was successful
+     * @param limit The limit of rows the result will contain.
+     * @param keys The primary key values. It should follow primary key field definition order, and it can be partial.
+     * @param <T> The type of the results.
+     * @return If the operation was successful.
      */
-    public<T extends WormTable> List<T> findAllFromKey(int limit, Object... primaryKey) {
-        if (primaryKey == null) return new ArrayList<>();
-
-        List<WormColumn> primaryKeys = getPrimaryKeys();
-        if (primaryKeys.size() == 0) return new ArrayList<>();
-
-        String sql = this.getPrimaryKeysSQL(primaryKey);
-
-        return this.findAllFromSQL(sql, limit);
+    @Nullable
+    public <T extends WormTable> List<T> findAllWithKeys(int limit, Object... keys) {
+        return findAllWithKeys(0, limit, keys);
     }
 
     /**
-     * Finds all the results match this primaryKey and
-     * parses its information to this instance.
+     * Finds all rows matching {@code keys} values in where clause and returns it.
      *
-     * Will return nothing if the table has no primary keys.
-     *
-     * @param offset The offset the results will begin at
-     * @param limit The limit of rows the result will contain
-     * @param primaryKey The table id values
-     * @param <T> The type of the results
-     * @return Whether the operation was successful
+     * @param offset The offset the results will begin at.
+     * @param limit The limit of rows the result will contain.
+     * @param keys The primary key values. It should follow primary key field definition order, and it can be partial.
+     * @param <T> The type of the results.
+     * @return Whether the operation was successful.
      */
-    public<T extends WormTable> List<T> findAllFromKey(int offset, int limit, Object... primaryKey) {
-        if (primaryKey == null) return new ArrayList<>();
-
-        List<WormColumn> primaryKeys = getPrimaryKeys();
-        if (primaryKeys.size() == 0) return new ArrayList<>();
-
-        String sql = this.getPrimaryKeysSQL(primaryKey);
-
-        return this.findAllFromSQL(sql, offset, limit);
-    }
-
-    /**
-     * Finds all the results that match the instance Primary Keys data.
-     * Will accept primary keys as null.
-     *
-     * @param <T> The type of the results
-     * @return A List containing all the results
-     */
-    public<T extends WormTable> List<T> findAll() {
-        String sql = this.getPrimaryKeysSQL(false);
-
-        return this.findAllFromSQL(sql);
-    }
-
-    /**
-     * Finds all the results that match the instance Primary Keys data.
-     * Will accept primary keys as null.
-     *
-     * @param limit The limit of rows the result will contain
-     * @param <T> The type of the results
-     * @return A List containing all the results
-     */
-    public<T extends WormTable> List<T> findAll(int limit) {
-        String sql = this.getPrimaryKeysSQL(false);
-
-        return this.findAllFromSQL(sql, limit);
-    }
-
-    /**
-     * Finds all the results that match the instance Primary Keys data.
-     * Will accept primary keys as null.
-     *
-     * @param offset The offset the results will begin at
-     * @param limit The limit of rows the result will contain
-     * @param <T> The type of the results
-     * @return A List containing all the results
-     */
-    public<T extends WormTable> List<T> findAll(int offset, int limit) {
-        String sql = this.getPrimaryKeysSQL(false);
-
-        return this.findAllFromSQL(sql, offset, limit);
-    }
-
-    /**
-     * Finds all the results that match the given SQL
-     *
-     * @param where The SQL where clause
-     * @param <T> The type of the results
-     * @return A List containing all the results
-     */
-    public<T extends WormTable> List<T> findAllFromSQL(String where) { return this.findAllFromSQL(where, 0, -1); }
-
-    /**
-     * Finds all the results that match the given SQL
-     *
-     * @param where The SQL where clause
-     * @param limit The limit of rows the result will contain
-     * @param <T> The type of the results
-     * @return A List containing all the results
-     */
-    public<T extends WormTable> List<T> findAllFromSQL(String where, int limit) { return this.findAllFromSQL(where, 0, limit); }
-
-    /**
-     * Finds all the results that match the given SQL
-     *
-     * @param where The SQL where clause
-     * @param offset The offset the results will begin at
-     * @param limit The limit of rows the result will contain
-     * @param <T> The type of the results
-     * @return A List containing all the results
-     */
-    public<T extends WormTable> List<T> findAllFromSQL(String where, int offset, int limit) {
-        String sql = "SELECT * FROM `" + tableName + "` WHERE " + where;
-        if(limit > 0)
-            if(offset > 0) sql += " LIMIT "+ offset +", "+ limit;
-            else sql += " LIMIT "+ limit;
-
+    @Nullable
+    public <T extends WormTable> List<T> findAllWithKeys(int offset, int limit, Object... keys) {
         try {
-            this.query = WormConnector.Query(sql);
-            this.query.executeQuery();
+            if (keys == null || keys.length == 0) return null;
+            if (tableMeta.getPrimaryKeyColumns().size() != keys.length)
+                throw new WormException("Wrong number of keys! Table primary key count: " + tableMeta.getPrimaryKeyColumns().size() + " | Argument count: " + keys.length + " | Table: " + tableMeta.getName());
+
+            String whereClause = WormQueryBuilders.buildCustomPrimaryKeyWhereClause(tableMeta, keys);
+
+            return findAllWhere(whereClause, offset, limit);
+        } catch (Exception exception) {
+            Worm.getLogger().error("Something went wrong while finding in table " + tableMeta.getName(), exception);
+            return null;
+        }
+    }
+
+    /**
+     * Finds all rows and returns it.
+     *
+     * @param <T> The type of the results
+     * @return {@code List} if the operation was successful, {@code null} if something went wrong.
+     */
+    @Nullable
+    public <T extends WormTable> List<T> findAll() {
+        return findAll(0, 0);
+    }
+
+    /**
+     * Finds all rows and returns it.
+     *
+     * @param limit The limit of rows the result will contain.
+     * @param <T> The type of the results.
+     * @return {@code List} if the operation was successful, {@code null} if something went wrong.
+     */
+    @Nullable
+    public <T extends WormTable> List<T> findAll(int limit) {
+        return findAll(0, limit);
+    }
+
+    /**
+     * Finds all rows and returns it.
+     *
+     * @param offset The offset the results will begin at.
+     * @param limit The limit of rows the result will contain.
+     * @param <T> The type of the results.
+     * @return {@code List} if the operation was successful, {@code null} if something went wrong.
+     */
+    @Nullable
+    public <T extends WormTable> List<T> findAll(int offset, int limit) {
+        return findAllWhere(null, offset, limit);
+    }
+
+    /**
+     * Finds all rows matching {@code whereClause} as the query's where clause and returns it.
+     * {@code WormTable#newInstance} and {@code WormTable#newInstance(T)} should be implemented for this to work.
+     *
+     * @param whereClause The where clause.
+     * @param <T> The type of the results.
+     * @return {@code List} if the operation was successful, {@code null} if something went wrong.
+     */
+    @Nullable
+    public<T extends WormTable> List<T> findAllWhere(String whereClause) {
+        return this.findAllWhere(whereClause, 0, 0);
+    }
+
+    /**
+     * Finds all rows matching {@code whereClause} as the query's where clause and returns it.
+     * {@code WormTable#newInstance} and {@code WormTable#newInstance(T)} should be implemented for this to work.
+     *
+     * @param whereClause The where clause.
+     * @param limit The limit of rows the result will contain.
+     * @param <T> The type of the results.
+     * @return {@code List} if the operation was successful, {@code null} if something went wrong.
+     */
+    @Nullable
+    public <T extends WormTable> List<T> findAllWhere(String whereClause, int limit) {
+        return this.findAllWhere(whereClause, 0, limit);
+    }
+
+    /**
+     * Finds all rows matching {@code whereClause} as the query's where clause and returns it.
+     * {@code WormTable#newInstance} and {@code WormTable#newInstance(T)} should be implemented for this to work.
+     *
+     * @param whereClause The where clause.
+     * @param offset The offset the results will begin at.
+     * @param limit The limit of rows the result will contain.
+     * @param <T> The type of the results.
+     * @return {@code List} if the operation was successful, {@code null} if something went wrong.
+     */
+    @SuppressWarnings("unchecked")
+    @Nullable
+    public <T extends WormTable> List<T> findAllWhere(String whereClause, int offset, int limit) {
+        try {
+            if (!findWhere(whereClause, offset, limit)) return null;
+
+            List<T> results = limit > 0 ? new ArrayList<>(limit) : new ArrayList<>();
+
             T instance = (T) this.clone();
-
-            // Already putting the initial capacity to economize CPU cycles
-            List<T> results;
-            if(limit > 0) results = new ArrayList<>(limit);
-            else results = new ArrayList<>();
-
-            while (this.Next(instance)) results.add((T) instance.clone());
+            while (next(instance))
+                results.add((T) instance.clone());
 
             return results;
-        } catch (SQLException exception) {
-            logger.log(Level.SEVERE, "Something went wrong while getting all results in table " + this.tableName, exception);
-            return new ArrayList<>();
-        }
-    }
-    //endregion
-
-    //region Auto-Increment table utils
-    /**
-     * Gets the first row of an auto-increment column.
-     *
-     * The table NEEDS to have an auto-increment Primary Key for this to work
-     *
-     * @return if it was found
-     */
-    public boolean GetFirst(){
-        WormColumn autoIncrementColumn = getAutoIncrementColumn();
-
-        if (autoIncrementColumn == null)
-            throw new IllegalStateException("The table must have one auto-increment primary key column");
-
-        return this.FindFromSQL("min(" + autoIncrementColumn.getSqlName() + ")");
-    }
-
-    /**
-     * Gets the last row of an auto-increment column.
-     *
-     * The table NEEDS to have an auto-increment Primary Key for this to work
-     *
-     * @return if it was found
-     */
-    public boolean GetLast(){
-        WormColumn autoIncrementColumn = getAutoIncrementColumn();
-
-        if (autoIncrementColumn == null)
-            throw new IllegalStateException("The table must have one auto-increment primary key column");
-
-        return this.FindFromSQL("max(" + autoIncrementColumn.getSqlName() + ")");
-    }
-    //endregion
-
-    //region Utils
-    /**
-     * Checks if a table has a primary key
-     */
-    private void Verify() {
-        List<WormColumn> primaryKeys = getPrimaryKeys();
-
-        if (primaryKeys.size() == 0)
-            throw new IllegalStateException("A table must have a primary key column");
-    }
-
-    /**
-     * Creates the SQL needed for the where clause with the given ids
-     *
-     * @return The SQL needed to find this instance
-     */
-    private String getPrimaryKeysSQL(Object[] ids) {
-        List<WormColumn> primaryKeys = getPrimaryKeys();
-
-        StringBuilder sql = new StringBuilder();
-        boolean first = true;
-        for (int i = 0; i < primaryKeys.size(); i++) {
-            if(ids.length == i) break;
-
-            sql.append(first ? "" : " AND ")
-                    .append(primaryKeys.get(i).getSqlName())
-                    .append(" = '").append(WormUtils.escapeToSql(ids[i].toString())).append("'");
-            first = false;
-        }
-
-        return sql.toString();
-    }
-
-    /**
-     * Creates the SQL needed for the where clause with the instance data
-     *
-     * @param throwOnNull Whether it should throw an error when an id is null
-     * @return The SQL needed to find this instance
-     */
-    private String getPrimaryKeysSQL(boolean throwOnNull){
-        List<WormColumn> primaryKeys = getPrimaryKeys();
-        StringBuilder sql = new StringBuilder();
-
-        try {
-            boolean first = true;
-            for (WormColumn primaryKey : primaryKeys) {
-                Field field = this.getClass().getField(primaryKey.getFieldName());
-                field.setAccessible(true);
-                Object value = field.get(this);
-
-                if (value == null) {
-                    if (throwOnNull) throw new IllegalStateException("Id column value is null");
-                    else continue;
-                }
-
-                sql.append(first ? "" : " AND ")
-                        .append(primaryKey.getSqlName())
-                        .append(" = '").append(WormUtils.escapeToSql(value.toString())).append("'");
-                first = false;
-            }
-
         } catch (Exception exception) {
-            logger.log(Level.SEVERE, "Something went wrong while finding in table " + this.tableName + " with instance data", exception);
+            Worm.getLogger().error("Something went wrong while finding all rows in table " + tableMeta.getName(), exception);
+            return null;
         }
-
-        return sql.toString();
-    }
-
-    /**
-     * Gets all the Primary Keys the table has.
-     *
-     * @return The list of Primary Key Columns
-     */
-    private List<WormColumn> getPrimaryKeys() {
-        List<WormColumn> fields = new ArrayList<>();
-        for (WormColumn column : columns)
-            if(column.isPrimaryKey()) fields.add(column);
-
-        if (fields.size() == 0)
-            logger.severe("Could not find any primary keys in table " + this.tableName);
-
-        return fields;
-    }
-
-    /**
-     * Gets the auto-increment Primary Key
-     *
-     * @return The column or null if nothing was found
-     * @throws IllegalStateException If the table has more than one auto-increment column
-     */
-    private WormColumn getAutoIncrementColumn() {
-        List<WormColumn> fields = new ArrayList<>();
-        for (WormColumn column : columns)
-            if(column.isPrimaryKey() && column.isAutoIncrement())
-                fields.add(column);
-
-        if (fields.size() > 1)
-            throw new IllegalStateException("Cannot have two auto-increment columns " + this.tableName);
-
-        if(fields.size() == 0) return null;
-        return fields.get(0);
-    }
-
-    /**
-     * Generate all columns from the table class
-     *
-     * @return A list with all the columns
-     */
-    private List<WormColumn> getColumnsFromClass() {
-        List<WormColumn> columns = new ArrayList<>();
-        for (Field field : this.getClass().getDeclaredFields()) {
-            if (!field.isAnnotationPresent(WormField.class)) continue;
-
-            WormField wormField = field.getAnnotation(WormField.class);
-            String fieldName = field.getName();
-            String sqlName = wormField.sqlName();
-            String sqlCreation = wormField.sqlType();
-            String defaultValue = wormField.defaultValue();
-            boolean autoIncrement = wormField.autoIncrement();
-            boolean primaryKey = wormField.primaryKey();
-            boolean nullable = wormField.nullable();
-
-            if (Objects.equals(sqlName, ""))
-                sqlName = fieldName;
-
-            if (wormField.length() > 0)
-                sqlCreation += "(" + wormField.length() + ")";
-
-            if (!nullable)
-                sqlCreation += " NOT NULL";
-
-            if (autoIncrement)
-                sqlCreation += " AUTO_INCREMENT";
-
-            if (!Objects.equals(defaultValue, ""))
-                sqlCreation += " DEFAULT '" + defaultValue + "'";
-
-            columns.add(new WormColumn(fieldName, sqlName, sqlCreation, primaryKey, autoIncrement));
-        }
-        return columns;
     }
     //endregion
 
-    //region Implements
-    @Override
-    public Object clone() {
+    //region Positional Find
+    /**
+     * Find and parses the first row based on the auto-increment column.
+     *
+     * @return If the operation was successful.
+     */
+    public boolean findFirst() {
         try {
-            return super.clone();
-        } catch (CloneNotSupportedException e) {
-            throw new AssertionError();
+            WormColumn column = tableMeta.getAutoIncrementColumn();
+            Objects.requireNonNull(column, "The table must have one auto-increment primary key column");
+
+            if (!findWhere("MIN(" + column.getSqlName() + ")", 0, 1)) return false;
+
+            return next();
+        } catch (Exception exception) {
+            Worm.getLogger().error("Something went wrong while finding all rows in table " + tableMeta.getName(), exception);
+            return false;
         }
     }
 
-    @Override
-    public void close() throws SQLException {
-        if (query != null) query.close();
+    /**
+     * Find and parses the last row based on the auto-increment column.
+     *
+     * @return If the operation was successful.
+     */
+    public boolean findLast() {
+        try {
+            WormColumn column = tableMeta.getAutoIncrementColumn();
+            Objects.requireNonNull(column, "The table must have one auto-increment primary key column");
+            if (!findWhere("MAX(" + column.getSqlName() + ")", 0, 1)) return false;
+
+            return next();
+        } catch (Exception exception) {
+            Worm.getLogger().error("Something went wrong while finding all rows in table " + tableMeta.getName(), exception);
+            return false;
+        }
     }
     //endregion
+
+    @Override
+    protected WormTable clone() throws CloneNotSupportedException {
+        return (WormTable) super.clone();
+    }
+
+    @Override
+    public void close() {
+        try {
+            if (this.currentQuery != null) this.currentQuery.close();
+            this.currentQuery = null;
+        } catch (SQLException exception) {
+            Worm.getLogger().error("Something went wrong while closing table " + tableMeta.getName(), exception);
+        }
+    }
+
 }

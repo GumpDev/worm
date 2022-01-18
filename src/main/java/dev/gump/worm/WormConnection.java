@@ -42,7 +42,7 @@ public class WormConnection {
     }
 
     public String getUrl(){
-        return "jdbc:mysql://"+ ip +":"+ port +"/"+ database;
+        return "jdbc:mysql://" + ip + ":" + port + "/" + database;
     }
 
     public String getUser() {
