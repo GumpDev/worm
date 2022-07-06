@@ -50,7 +50,7 @@ First, add Worm's repository into ```pom.xml```:
     ...
     <repository>
         <id>worm</id>
-        <url>https://repo.gump.dev/snapshots/</url>
+        <url>https://repo.gump.dev/releases/</url>
     </repository>
 </repositories>
 ```
