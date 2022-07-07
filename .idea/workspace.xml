@@ -6,11 +6,9 @@
   <component name="ChangeListManager">
     <list default="true" id="29ad6371-37df-4dcc-a093-716bafa9f48d" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/dev/gump/worm/entity/Entity.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/dev/gump/worm/entity/Entity.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/dev/gump/worm/field/SequenceType.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/dev/gump/worm/field/SequenceType.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/dev/gump/worm/field/WormField.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/dev/gump/worm/field/WormField.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/test/java/User.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/test/java/User.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/dev/gump/worm/WormRegistry.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/dev/gump/worm/WormRegistry.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

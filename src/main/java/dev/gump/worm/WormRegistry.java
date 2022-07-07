@@ -15,6 +15,7 @@ import java.util.*;
 public final class WormRegistry {
 
     private final Map<Class<? extends Entity>, EntityMeta> tableMap = new HashMap<>();
+    private final List<EntityMeta> tables = new ArrayList<>();
 
     WormRegistry() {}
 
@@ -66,11 +67,7 @@ public final class WormRegistry {
         EntityMeta tableMeta = new EntityMeta(tableClass, tableName, columns, contexts);
 
         this.tableMap.put(tableClass, tableMeta);
-        try {
-            tableClass.getConstructor().newInstance();
-        } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-            throw new RuntimeException(e);
-        }
+        this.tables.add(tableMeta);
     }
 
     /**
@@ -82,8 +79,8 @@ public final class WormRegistry {
         return Objects.requireNonNull(this.tableMap.get(tableClass), "Table Class " + tableClass.getName() + " was not registered!");
     }
 
-    Collection<EntityMeta> getTables() {
-        return this.tableMap.values();
+    List<EntityMeta> getTables() {
+        return this.tables;
     }
 
 }

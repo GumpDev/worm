@@ -62,7 +62,7 @@ Then, add Worm's dependency too:
     <dependency>
         <groupId>dev.gump</groupId>
         <artifactId>worm</artifactId>
-        <version>1.1</version>
+        <version>1.1.1</version>
         <scope>compile</scope>
     </dependency>
 </dependencies>
@@ -87,7 +87,7 @@ Then, add Worm's dependency too:
 ```
     dependencies {
         ...
-        compile 'dev.gump:worm:1.1'
+        compile 'dev.gump:worm:1.1.1'
     }
 ```
 (i don't know if this is right, i don't use Gradle :P)
