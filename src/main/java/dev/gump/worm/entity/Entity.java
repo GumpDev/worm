@@ -3,6 +3,7 @@ package dev.gump.worm.entity;
 import dev.gump.worm.Worm;
 
 import java.lang.invoke.MethodHandles;
+import java.time.LocalDateTime;
 import java.util.concurrent.CompletableFuture;
 
 public class Entity {

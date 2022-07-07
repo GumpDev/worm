@@ -7,6 +7,10 @@
     <list default="true" id="29ad6371-37df-4dcc-a093-716bafa9f48d" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/dev/gump/worm/entity/Entity.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/dev/gump/worm/entity/Entity.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/dev/gump/worm/field/SequenceType.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/dev/gump/worm/field/SequenceType.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/dev/gump/worm/field/WormField.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/dev/gump/worm/field/WormField.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/test/java/User.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/test/java/User.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -36,14 +40,14 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "last_opened_file_path": "D:/Projetos/Worm"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/Projetos/Worm&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="D:\Projetos\Worm" />

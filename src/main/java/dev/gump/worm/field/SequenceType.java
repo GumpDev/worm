@@ -4,5 +4,7 @@ public enum SequenceType {
     NONE,
     AUTO_INCREMENT,
     RANDOM_UUID,
-    RANDOM_STRING
+    RANDOM_STRING,
+
+    NOW_DATE
 }

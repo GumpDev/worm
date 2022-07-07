@@ -16,6 +16,7 @@ public class User extends Entity {
     public int age;
 
     public User() {
+
     }
 
     public User(String name, int age) throws ExecutionException, InterruptedException {

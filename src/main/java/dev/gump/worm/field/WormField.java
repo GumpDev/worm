@@ -8,6 +8,10 @@ import dev.gump.worm.entity.EntityMeta;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Field;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.util.Date;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -53,7 +57,13 @@ public class WormField {
             else if(field.getType().equals(String.class)) {
                 increment = SequenceType.RANDOM_STRING;
                 this.length = 32;
-            }
+            }else if(field.getType().equals(Date.class) ||
+                    field.getType().equals(Long.class) ||
+                    field.getType().equals(LocalDate.class) ||
+                    field.getType().equals(LocalDateTime.class) ||
+                    field.getType().equals(ZonedDateTime.class)
+                )
+                increment = SequenceType.NOW_DATE;
         }else{
             length1 = fieldAnnotation.length();
             if (fieldAnnotation.length() == 0 && type == FieldType.VARCHAR)
@@ -113,9 +123,14 @@ public class WormField {
             sqlSpec.append(" NOT NULL");
         if (increment == SequenceType.AUTO_INCREMENT)
             sqlSpec.append(" AUTO_INCREMENT");
-        if (!Objects.equals(defaultValue, ""))
-            sqlSpec.append(" DEFAULT '").append(WormUtils.escapeToSql(defaultValue)).append('\'');
-
+        if(increment == SequenceType.NOW_DATE)
+            sqlSpec.append(" DEFAULT now()");
+        else if (!Objects.equals(defaultValue, "")) {
+            if(getType().isNeedAsps())
+                sqlSpec.append(" DEFAULT '").append(WormUtils.escapeToSql(defaultValue)).append('\'');
+            else
+                sqlSpec.append(" DEFAULT ").append(defaultValue);
+        }
         return sqlSpec.toString();
     }
 
