@@ -52,7 +52,7 @@ public class WormField {
             if (field.getType().equals(UUID.class)) {
                 increment = SequenceType.RANDOM_UUID;
                 this.length = 36;
-            }else if(field.getType().equals(Integer.class))
+            }else if(field.getType().equals(int.class) || field.getType().equals(Integer.class))
                 increment = SequenceType.AUTO_INCREMENT;
             else if(field.getType().equals(String.class)) {
                 increment = SequenceType.RANDOM_STRING;
