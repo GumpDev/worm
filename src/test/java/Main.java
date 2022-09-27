@@ -12,5 +12,8 @@ public class Main {
         connection.setDebug(true);
 
         Worm.initialize(connection);
+
+        Item item = new Item("teste", 2);
+        item.insert();
     }
 }

@@ -7,7 +7,7 @@
     <list default="true" id="29ad6371-37df-4dcc-a093-716bafa9f48d" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/dev/gump/worm/WormRegistry.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/dev/gump/worm/WormRegistry.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/dev/gump/worm/builders/WormQueryBuilder.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/dev/gump/worm/builders/WormQueryBuilder.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/test/java/Item.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/test/java/Item.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/test/java/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/test/java/Main.java" afterDir="false" />
     </list>
@@ -56,7 +56,7 @@
       <recent name="dev.gump.worm" />
     </key>
   </component>
-  <component name="RunManager" selected="Maven.worm [clean,deploy]">
+  <component name="RunManager" selected="Application.Main">
     <configuration name="Main" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="Main" />
       <module name="Worm" />

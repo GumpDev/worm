@@ -66,6 +66,9 @@ public class WormQueryBuilder {
                 else
                     builder.append("NULL");
             }
+            else if(column.getIncrement() == SequenceType.AUTO_INCREMENT){
+                builder.append("DEFAULT");
+            }
             else if (value != null || column.getIncrement() == SequenceType.RANDOM_STRING || column.getIncrement() == SequenceType.RANDOM_UUID) {
                 String stringValue;
 

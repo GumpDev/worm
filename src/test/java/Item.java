@@ -18,7 +18,6 @@ public class Item extends Entity {
     public Item(String name, int force) {
         this.name = name;
         this.force = force;
-        this.insert();
     }
 
     public int getItemId() {
