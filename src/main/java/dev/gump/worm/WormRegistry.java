@@ -45,6 +45,7 @@ public final class WormRegistry {
             dev.gump.worm.field.Field wormField = field.getAnnotation(dev.gump.worm.field.Field.class);
             if (wormField == null) continue;
 
+
             WormField column = new WormField(field);
 
             if (column.isUnique() && column.isNullable())
@@ -58,7 +59,6 @@ public final class WormRegistry {
 
             if (column.getIncrement() == SequenceType.AUTO_INCREMENT) {
                 autoIncrementColumn = column;
-                continue;
             }
 
             columns.add(column);

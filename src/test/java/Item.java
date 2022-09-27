@@ -6,7 +6,7 @@ import java.util.UUID;
 
 public class Item extends Entity {
     @Field(unique = true, autoGenerate = true)
-    public UUID itemId;
+    public int itemId;
     @Field
     public String name;
     @Field
@@ -21,11 +21,11 @@ public class Item extends Entity {
         this.insert();
     }
 
-    public UUID getItemId() {
+    public int getItemId() {
         return itemId;
     }
 
-    public void setItemId(UUID itemId) {
+    public void setItemId(int itemId) {
         this.itemId = itemId;
     }
 
